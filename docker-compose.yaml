@@ -1,0 +1,60 @@
+version: "3"
+
+services:
+  redis:
+    image: redis/redis-stack:latest
+    container_name: webhookplan_redis
+    volumes:
+      - ./redis/data:/data
+    ports:
+      - 6379:6379
+      - 8001:8001
+    restart: always
+
+  postgres:
+    image: postgres:alpine
+    container_name: webhookplan_postgres
+    env_file:
+      - .db.env
+    ports:
+      - 5432:5432
+    volumes:
+      - ./postgres/pgdata/:/var/lib/postgresql/data
+
+  django:
+    build: api
+    container_name: webhookplan_django
+    command: sh -c "gunicorn --bind 0.0.0.0:8000 --workers=4 core.wsgi --reload"
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    volumes:
+      - ./api:/app
+    depends_on:
+      - postgres
+      - redis
+
+  celery_worker:
+    build: api
+    container_name: webhookplan_celery_worker
+    command: sh -c "celery -A core.celery worker -l info"
+    env_file:
+      - .env
+    volumes:
+      - ./api:/app
+    depends_on:
+      - postgres
+      - redis
+
+  celery_beat:
+    build: api
+    container_name: webhookplan_celery_beat
+    command: sh -c "celery -A core.celery beat -l info -S django"
+    env_file:
+      - .env
+    volumes:
+      - ./api:/app
+    depends_on:
+      - postgres
+      - redis
