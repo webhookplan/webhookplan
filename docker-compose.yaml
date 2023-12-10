@@ -9,7 +9,7 @@ services:
     ports:
       - 6379:6379
       - 8001:8001
-    restart: always
+    restart: on-failure
 
   postgres:
     image: postgres:alpine
@@ -20,6 +20,7 @@ services:
       - 5432:5432
     volumes:
       - ./postgres/pgdata/:/var/lib/postgresql/data
+    restart: on-failure
 
   django:
     build: api
@@ -34,6 +35,7 @@ services:
     depends_on:
       - postgres
       - redis
+    restart: on-failure
 
   celery_worker:
     build: api
@@ -46,6 +48,7 @@ services:
     depends_on:
       - postgres
       - redis
+    restart: on-failure
 
   celery_beat:
     build: api
@@ -58,3 +61,4 @@ services:
     depends_on:
       - postgres
       - redis
+    restart: on-failure
