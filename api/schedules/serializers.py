@@ -46,6 +46,7 @@ class PeriodicTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = PeriodicTask
         fields = (
+            "id",
             "name",
             "task",
             "interval",
