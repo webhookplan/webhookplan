@@ -16,11 +16,31 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from drf_yasg import openapi, views
 
 from core.views import Ping
+
+schema_view = views.get_schema_view(
+    openapi.Info(
+        title="WebhookPlan API",
+        default_version="v1",
+        contact=openapi.Contact(email="contact@webhookplan.com"),
+        license=openapi.License(name="BSD 3-Clause License"),
+    ),
+    public=True,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("schedules/", include("schedules.urls")),
+    path(
+        "swagger<format>/", schema_view.without_ui(cache_timeout=0), name="schema-json"
+    ),
+    path(
+        "swagger/",
+        schema_view.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    ),
+    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
     path("", Ping.as_view()),
 ]

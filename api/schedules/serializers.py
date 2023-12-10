@@ -10,6 +10,10 @@ from django_celery_beat.models import (
     PeriodicTask,
 )
 
+from config import METHOD_CHOICES
+
+import json
+
 
 class IntervalScheduleSerializer(serializers.ModelSerializer):
     class Meta:
@@ -48,6 +52,7 @@ class PeriodicTaskSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "description",
             "task",
             "interval",
             "crontab",
@@ -57,13 +62,7 @@ class PeriodicTaskSerializer(serializers.ModelSerializer):
             "crontab_details",
             "solar_details",
             "clocked_details",
-            "args",
             "kwargs",
-            "queue",
-            "exchange",
-            "routing_key",
-            "headers",
-            "priority",
             "expires",
             "expire_seconds",
             "one_off",
@@ -72,5 +71,20 @@ class PeriodicTaskSerializer(serializers.ModelSerializer):
             "last_run_at",
             "total_run_count",
             "date_changed",
-            "description",
         )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data.pop("task")
+        kwargs = data.pop("kwargs")
+        data["webhook"] = json.loads(kwargs or "{}")
+        return data
+
+
+class WebhookSerializer(serializers.Serializer):
+    pt_name = serializers.CharField(allow_blank=True, allow_null=True)
+    url = serializers.URLField(required=True)
+    method = serializers.ChoiceField(required=True, choices=METHOD_CHOICES)
+    query = serializers.DictField(allow_empty=True, allow_null=True)
+    payload = serializers.DictField(allow_empty=True, allow_null=True)
+    headers = serializers.DictField(allow_empty=True, allow_null=True)
