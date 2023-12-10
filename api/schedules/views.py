@@ -32,7 +32,11 @@ class ScheduleCrudApi(views.APIView):
     def get(self, request: request.Request, *args, **kwargs):
         id = request.query_params.get("id", None)
 
-        qs = self.model_class.objects.all().order_by("-id")
+        qs = (
+            self.model_class.objects.all()
+            .exclude(name="celery.backend_cleanup")
+            .order_by("-id")
+        )
 
         if id:
             qs = qs.filter(id=id)
@@ -339,6 +343,56 @@ class ScheduleCrudApi(views.APIView):
 
         pt_serializer.save()
         return response.Response(pt_serializer.data, status.HTTP_201_CREATED)
+
+
+class DisableScheduleApi(views.APIView):
+    model_class = django_celery_beat_models.PeriodicTask
+    serializer_class = schedule_serializers.PeriodicTaskSerializer
+
+    @swagger_auto_schema(
+        responses=GET_RESPONSES,
+        manual_parameters=[
+            openapi.Parameter(
+                name="id",
+                in_="query",
+                type=openapi.TYPE_INTEGER,
+                required=True,
+            ),
+        ],
+    )
+    def get(self, request: request.Request, *args, **kwargs):
+        id = request.query_params.get("id", None)
+        if not id:
+            return response.Response(
+                {"details": "id is required"}, status.HTTP_400_BAD_REQUEST
+            )
+
+        qs = self.model_class.objects.filter(id=id).exclude(
+            name="celery.backend_cleanup"
+        )
+
+        if not qs.count():
+            return response.Response(
+                {"details": "schedule not found"}, status.HTTP_404_NOT_FOUND
+            )
+
+        task = qs.first()
+
+        if task.enabled != True:
+            return response.Response(
+                {"details": "schedule is already disabled"}, status.HTTP_400_BAD_REQUEST
+            )
+
+        task_serializer = self.serializer_class(
+            task, data={"enabled": False}, partial=True
+        )
+        if not task_serializer.is_valid():
+            return response.Response(
+                task_serializer.errors, status.HTTP_400_BAD_REQUEST
+            )
+
+        task_serializer.save()
+        return response.Response(task_serializer.data, status.HTTP_200_OK)
 
 
 class TestWebhookApi(views.APIView):
