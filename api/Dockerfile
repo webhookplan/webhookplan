@@ -9,4 +9,6 @@ RUN pip install -r requirements.txt
 
 COPY . /app
 
-CMD python manage.py migrate && gunicorn --bind 0.0.0.0:8000 --workers=4 core.wsgi
+CMD python manage.py collectstatic --noinput && \
+    python manage.py migrate && \
+    gunicorn --bind 0.0.0.0:8000 --workers=4 core.wsgi
