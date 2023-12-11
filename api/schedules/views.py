@@ -12,6 +12,7 @@ from utils.responses import GET_RESPONSES, POST_RESPONSES
 from tasks.webhook import make_wehbook_request
 
 from pytz import all_timezones
+from uuid import uuid4
 import json
 
 
@@ -48,7 +49,7 @@ class ScheduleCrudApi(views.APIView):
         responses=POST_RESPONSES,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["name", "webhook"],
+            required=["webhook"],
             properties={
                 "name": openapi.Schema(
                     type=openapi.TYPE_STRING,
@@ -213,7 +214,7 @@ class ScheduleCrudApi(views.APIView):
     def post(self, request: request.Request, *args, **kwargs):
         data = request.data
 
-        name = data.get("name", None)
+        name = data.get("name", str(uuid4()))
         description = data.get("description", None)
 
         interval = data.get("interval", None)
@@ -223,17 +224,11 @@ class ScheduleCrudApi(views.APIView):
 
         expires = data.get("expires", None)
         expire_seconds = data.get("expire_seconds", None)
-        one_off = data.get("one_off", None)
+        one_off = data.get("one_off", False)
         start_time = data.get("start_time", None)
-        enabled = data.get("enabled", None)
+        enabled = data.get("enabled", True)
 
         webhook: dict = data.get("webhook", {})
-
-        # name is required
-        if not name:
-            return response.Response(
-                {"details": "name is required"}, status.HTTP_400_BAD_REQUEST
-            )
 
         # shoud send atleast ONE of the following schedules
         if not any([interval, crontab, solar, clocked]):
@@ -248,7 +243,7 @@ class ScheduleCrudApi(views.APIView):
         if sum(bool(x) for x in [interval, crontab, solar, clocked]) > 1:
             return response.Response(
                 {
-                    "details": "Either of interval, crontab, solar or clocked are reqired"
+                    "details": "Only one of the interval, crontab, solar or clocked should be sent"
                 },
                 status.HTTP_400_BAD_REQUEST,
             )
@@ -276,7 +271,8 @@ class ScheduleCrudApi(views.APIView):
             )
             if not interval_serializer.is_valid():
                 return response.Response(
-                    interval_serializer.errors, status.HTTP_400_BAD_REQUEST
+                    {"interval": interval_serializer.errors},
+                    status.HTTP_400_BAD_REQUEST,
                 )
             interval_instance = interval_serializer.save()
 
@@ -288,7 +284,7 @@ class ScheduleCrudApi(views.APIView):
             )
             if not crontab_serializer.is_valid():
                 return response.Response(
-                    crontab_serializer.errors, status.HTTP_400_BAD_REQUEST
+                    {"crontab": crontab_serializer.errors}, status.HTTP_400_BAD_REQUEST
                 )
             crontab_instance = crontab_serializer.save()
 
@@ -298,7 +294,7 @@ class ScheduleCrudApi(views.APIView):
             solar_serializer = schedule_serializers.SolarScheduleSerializer(data=solar)
             if not solar_serializer.is_valid():
                 return response.Response(
-                    solar_serializer.errors, status.HTTP_400_BAD_REQUEST
+                    {"solar": solar_serializer.errors}, status.HTTP_400_BAD_REQUEST
                 )
             solar_instance = solar_serializer.save()
 
@@ -310,7 +306,7 @@ class ScheduleCrudApi(views.APIView):
             )
             if not clocked_serializer.is_valid():
                 return response.Response(
-                    clocked_serializer.errors, status.HTTP_400_BAD_REQUEST
+                    {"clocked": clocked_serializer.errors}, status.HTTP_400_BAD_REQUEST
                 )
             clocked_instance = clocked_serializer.save()
 
